@@ -12,6 +12,8 @@ namespace Player
         [SerializeField] private CinemachineCamera cinemachineCamera;
         [SerializeField] private Camera camera;
         [SerializeField] private CameraConfig cameraConfig;
+        [SerializeField] private LayerMask selectableLayerMask;
+        [SerializeField] private LayerMask floorLayers;
 
         private CinemachineFollow cinemachineFollow;
         private Vector3 startingFollowOffset;
@@ -48,6 +50,20 @@ namespace Player
             HandleZooming();
             HandleRotation();
             HandleLeftClick();
+            HandleRightClick();
+        }
+
+        private void HandleRightClick()
+        {
+            if (selectedUnit == null || selectedUnit is not IMoveable moveable) { return; }
+
+            Ray cameraRay = camera.ScreenPointToRay(Mouse.current.position.ReadValue());
+
+            if (Mouse.current.rightButton.wasReleasedThisFrame
+                && Physics.Raycast(cameraRay, out RaycastHit hit, float.MaxValue, floorLayers))
+            {
+                moveable.MoveTo(hit.point);
+            }
         }
 
         private void HandleLeftClick()
@@ -64,7 +80,7 @@ namespace Player
                     selectedUnit = null;
                 }
 
-                if (Physics.Raycast(cameraRay, out RaycastHit hit, float.MaxValue, LayerMask.GetMask("Default"))
+                if (Physics.Raycast(cameraRay, out RaycastHit hit, float.MaxValue, selectableLayerMask)
                     && hit.collider.TryGetComponent(out ISelectable selectable))
                 {
                     selectable.Select();
