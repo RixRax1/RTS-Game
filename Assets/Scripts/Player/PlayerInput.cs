@@ -1,17 +1,21 @@
+using System;
+using Units;
 using Unity.Cinemachine;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-namespace Rix.Player
+namespace Player
 {
     public class PlayerInput : MonoBehaviour
     {
         [SerializeField] private Rigidbody cameraTarget;
         [SerializeField] private CinemachineCamera cinemachineCamera;
+        [SerializeField] private Camera camera;
         [SerializeField] private CameraConfig cameraConfig;
 
         private CinemachineFollow cinemachineFollow;
         private Vector3 startingFollowOffset;
+        private ISelectable selectedUnit;
 
         private void Awake()
         {
@@ -43,7 +47,32 @@ namespace Rix.Player
             HandlePanning();
             HandleZooming();
             HandleRotation();
+            HandleLeftClick();
         }
+
+        private void HandleLeftClick()
+        {
+            if (camera == null) { return ; }
+
+            Ray cameraRay = camera.ScreenPointToRay(Mouse.current.position.ReadValue());
+
+            if (Mouse.current.leftButton.wasReleasedThisFrame)
+            {
+                if (selectedUnit != null)
+                {
+                    selectedUnit.Deselect();
+                    selectedUnit = null;
+                }
+
+                if (Physics.Raycast(cameraRay, out RaycastHit hit, float.MaxValue, LayerMask.GetMask("Default"))
+                    && hit.collider.TryGetComponent(out ISelectable selectable))
+                {
+                    selectable.Select();
+                    selectedUnit = selectable;
+                }
+            }
+        }
+
 
         private void HandleRotation()
         {

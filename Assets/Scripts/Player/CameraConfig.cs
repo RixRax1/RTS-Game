@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Rix.Player
+namespace Player
 {
     [System.Serializable]
     public class CameraConfig
