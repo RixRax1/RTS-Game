@@ -18,11 +18,6 @@ namespace Units
             agent = GetComponent<NavMeshAgent>();
         }
 
-        private void start()
-        {
-            Bus<UnitSpawnEvent>.Raise(new UnitSpawnEvent(this));
-        }
-
         private void Start()
         {
             Bus<UnitSpawnEvent>.Raise(new UnitSpawnEvent(this));
