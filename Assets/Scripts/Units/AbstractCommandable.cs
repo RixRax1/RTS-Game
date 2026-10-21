@@ -1,3 +1,4 @@
+using Commands;
 using EventBus;
 using Events;
 using UnityEngine;
@@ -9,6 +10,7 @@ namespace Units
     {
         [field: SerializeField] public int CurrentHealth { get; private set; }
         [field: SerializeField] public int MaxHealth { get; private set; }
+        [field: SerializeField] public ActionBase[] AvailableCommands { get; private set; }
         [SerializeField] private DecalProjector decalProjector;
         [SerializeField] private UnitSO unitSO;
 
