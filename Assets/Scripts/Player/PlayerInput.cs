@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Commands;
 using EventBus;
 using Events;
 using Units;
 using Unity.Cinemachine;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 
 namespace Player
@@ -22,6 +24,8 @@ namespace Player
 
         private Vector2 startingMousePosition;
 
+        private ActionBase activeAction;
+        private bool wasMouseDownOnUI;
         private CinemachineFollow cinemachineFollow;
         private Vector3 startingFollowOffset;
         private HashSet<AbstractUnit> aliveUnits = new(100); // Alive units set with an initial capacity of 100.
@@ -50,6 +54,7 @@ namespace Player
             Bus<UnitSelectedEvent>.OnEvent += HandleUnitSelected;
             Bus<UnitDeselectedEvent>.OnEvent += HandleUnitDeselected;
             Bus<UnitSpawnEvent>.OnEvent += HandleUnitSpawned;
+            Bus<ActionSelectedEvent>.OnEvent += HandleActionSelected;
         }
 
         private void OnDestroy()
@@ -57,11 +62,22 @@ namespace Player
             Bus<UnitSelectedEvent>.OnEvent -= HandleUnitSelected;
             Bus<UnitDeselectedEvent>.OnEvent -= HandleUnitDeselected;
             Bus<UnitSpawnEvent>.OnEvent -= HandleUnitSpawned;
+            Bus<ActionSelectedEvent>.OnEvent -= HandleActionSelected;
         }
 
         private void HandleUnitSelected(UnitSelectedEvent evt) => selectedUnits.Add(evt.Unit);
         private void HandleUnitDeselected(UnitDeselectedEvent evt) => selectedUnits.Remove(evt.Unit);
         private void HandleUnitSpawned(UnitSpawnEvent evt) => aliveUnits.Add(evt.Unit);
+        private void HandleActionSelected(ActionSelectedEvent evt) 
+        {
+            activeAction = evt.Action;
+            if (!activeAction.RequiresClickToActivate)
+            {
+                ActionBase action = activeAction;
+                activeAction = null;
+                ActivateAction(action, new RaycastHit());
+            }
+        }
 
         private void Update()
         {
@@ -92,7 +108,7 @@ namespace Player
 
         private void HandleMouseUp()
         {
-            if (!Keyboard.current.shiftKey.isPressed)
+            if (!wasMouseDownOnUI && activeAction == null && !Keyboard.current.shiftKey.isPressed)
             {
                 DeselectAllUnits();
             }
@@ -107,6 +123,8 @@ namespace Player
 
         private void HandleMouseDrag()
         {
+            if (activeAction != null || wasMouseDownOnUI) return;
+            
             Bounds selectionBoxBounds = ResizeSelectionBox();
                 foreach (AbstractUnit unit in aliveUnits)
                 {
@@ -125,6 +143,7 @@ namespace Player
             selectionBox.gameObject.SetActive(true);
             startingMousePosition = Mouse.current.position.ReadValue();
             addedUnits.Clear();
+            wasMouseDownOnUI = EventSystem.current.IsPointerOverGameObject();
         }
 
         private void DeselectAllUnits()
@@ -189,10 +208,33 @@ namespace Player
 
             Ray cameraRay = camera.ScreenPointToRay(Mouse.current.position.ReadValue());
 
-            if (Physics.Raycast(cameraRay, out RaycastHit hit, float.MaxValue, selectableUnitsLayers)
+            if (activeAction == null 
+                && Physics.Raycast(cameraRay, out RaycastHit hit, float.MaxValue, selectableUnitsLayers)
                 && hit.collider.TryGetComponent(out ISelectable selectable))
             {
                 selectable.Select();
+            }
+            else if (activeAction != null
+                && !EventSystem.current.IsPointerOverGameObject()
+                && Physics.Raycast(cameraRay, out hit, float.MaxValue, floorLayers))
+            {
+                ActionBase action = activeAction;
+                activeAction = null;
+                ActivateAction(action, hit);
+            }
+        }
+
+        private void ActivateAction(ActionBase action, RaycastHit hit)
+        {
+            List<AbstractCommandable> abstractCommandables = selectedUnits
+                .Where((unit) => unit is AbstractCommandable)
+                .Cast<AbstractCommandable>()
+                .ToList();
+
+            for (int i = 0; i < abstractCommandables.Count; i++)
+            {
+                CommandContext context = new(abstractCommandables[i], hit, i);
+                action.Handle(context);
             }
         }
 

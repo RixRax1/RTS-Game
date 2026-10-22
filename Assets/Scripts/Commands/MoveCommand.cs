@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Commands
 {
-    [CreateAssetMenu(fileName="Move Action", menuName="AI/Actions/Move", order=100)]
+    [CreateAssetMenu(fileName="Move Action", menuName="AI/Commands/Move", order=100)]
     public class MoveCommand : ActionBase
     {
         [SerializeField] private float raiusMultiplier = 3.5f; // The multiplier for the radius of the circle around the target position where units will be placed.
